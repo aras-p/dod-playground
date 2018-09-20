@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\source\external\sokol.c">
+      <Filter>external</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\application.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="external">
+      <UniqueIdentifier>{3706160e-95bd-44ff-8844-8289facb5acb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\source\external\HandmadeMath.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\external\sokol_app.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\external\sokol_gfx.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\external\sokol_time.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\external\stb_easy_font.h">
+      <Filter>external</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
