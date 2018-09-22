@@ -1,2 +1,5 @@
 build/
 .vs/
+project.xcworkspace
+xcuserdata
+
