@@ -57,7 +57,7 @@ void init(void) {
     
     /* create an image */
     int texX, texY, texN;
-    uint8_t* texData = stbi_load("data/SpaceCute-Girl4.png", &texX, &texY, &texN, 4);
+    uint8_t* texData = stbi_load("data/sprites.png", &texX, &texY, &texN, 4);
     sg_image tex = sg_make_image(&(sg_image_desc){
         .width = texX,
         .height = texY,
@@ -105,7 +105,11 @@ void init(void) {
     
     stm_setup();
     sprite_data = (sprite_data_t*)malloc(kMaxSpriteCount * sizeof(sprite_data_t));
+
+    uint64_t t0 = stm_now();
     game_initialize();
+    uint64_t tdiff = stm_diff(stm_now(), t0);
+    printf("Initialize time: %.1fms\n", stm_ms(tdiff));
 }
 
 void frame(void) {
@@ -115,7 +119,25 @@ void frame(void) {
     vs_params.aspect = w / h;
 
     uint64_t dt = stm_laptime(&time);
+    
+    uint64_t t0 = stm_now();
     int sprite_count = game_update(sprite_data, stm_sec(time), (float)stm_sec(dt));
+    uint64_t tdiff = stm_diff(stm_now(), t0);
+    // print times that game update took (print only on frames that are powers of two, to not
+    // spam the output)
+    static int frameCount = 0;
+    static int totalFrameCount = 0;
+    static uint64_t frameTimes = 0;
+    frameTimes += tdiff;
+    frameCount++;
+    totalFrameCount++;
+    if ((totalFrameCount & (totalFrameCount - 1)) == 0 && totalFrameCount > 4)
+    {
+        printf("Update time: %.1fms (%i sprites)\n", stm_ms(frameTimes) / frameCount, sprite_count);
+        frameTimes = 0;
+        frameCount = 0;
+    }
+
     assert(sprite_count >= 0 && sprite_count <= kMaxSpriteCount);
     sg_update_buffer(draw_state.vertex_buffers[0], sprite_data, sprite_count * sizeof(sprite_data[0]));
 
@@ -156,11 +178,11 @@ const char* vs_src =
     "  float aspect;\n"
     "};\n"
     "struct vs_in {\n"
-    "  float3 posscale [[attribute(0)]];\n"
-    "  float4 color [[attribute(1)]];\n"
+    "  float3 posScale [[attribute(0)]];\n"
+    "  float4 colorIndex [[attribute(1)]];\n"
     "};\n"
     "struct v2f {\n"
-    "  float4 color;\n"
+    "  float3 color;\n"
     "  float2 uv;\n"
     "  float4 pos [[position]];\n"
     "};\n"
@@ -168,24 +190,26 @@ const char* vs_src =
     "  v2f out;\n"
     "  float x = vid / 2;\n"
     "  float y = vid & 1;\n"
-    "  out.pos.x = in.posscale.x + x * in.posscale.z;\n"
-    "  out.pos.y = in.posscale.y + y * in.posscale.z * params.aspect;\n"
+    "  out.pos.x = in.posScale.x + (x-0.5f) * in.posScale.z;\n"
+    "  out.pos.y = in.posScale.y + (y-0.5f) * in.posScale.z * params.aspect;\n"
     "  out.pos.z = 0.0f;\n"
     "  out.pos.w = 1.0f;\n"
-    "  out.uv = float2(x,1-y);\n"
-    "  out.color = in.color;\n"
+    "  out.uv = float2((x + in.colorIndex.w)/8,1-y);\n"
+    "  out.color = in.colorIndex.rgb;\n"
     "  return out;\n"
     "}\n";
 const char* fs_src =
     "#include <metal_stdlib>\n"
     "using namespace metal;\n"
     "struct v2f {\n"
-    "  float4 color;\n"
+    "  float3 color;\n"
     "  float2 uv;\n"
     "  float4 pos [[position]];\n"
     "};\n"
     "fragment float4 _main(v2f in [[stage_in]], texture2d<float> tex0 [[texture(0)]], sampler smp0 [[sampler(0)]]) {\n"
     "  float4 diffuse = tex0.sample(smp0, in.uv);"
+    "  float lum = dot(diffuse.rgb, float3(0.333));\n"
+    "  diffuse.rgb = mix(diffuse.rgb, float3(lum), 0.8);\n"
     "  diffuse.rgb *= in.color.rgb;\n"
     "  return diffuse;\n"
     "}\n";

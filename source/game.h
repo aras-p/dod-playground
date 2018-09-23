@@ -5,13 +5,14 @@ extern "C" {
 #endif
 
 
-#define kMaxSpriteCount 100000
+#define kMaxSpriteCount 1100000
 
 typedef struct
 {
     float posX, posY;
     float scale;
-    float color[4];
+    float colR, colG, colB;
+    float sprite;
 } sprite_data_t;
 
 void game_initialize(void);
