@@ -30,8 +30,6 @@ enum ComponentType
     kCompSprite,
     kCompWorldBounds,
     kCompMove,
-    kCompAvoid,
-    kCompAvoidThis,
 };
 
 // Component base class. Knows about the parent game object, and has some virtual methods.
@@ -249,24 +247,6 @@ void MoveComponent::Start()
 
 
 
-// When present, tells things that have Avoid component to avoid this object
-struct AvoidThisComponent : public Component
-{
-    enum { kTypeId = kCompAvoidThis };
-    AvoidThisComponent() : Component((ComponentType)kTypeId) {}
-    
-    float distance;
-};
-
-// Objects with this component "avoid" objects with AvoidThis component.
-struct AvoidComponent : public Component
-{
-    enum { kTypeId = kCompAvoid };
-    AvoidComponent() : Component((ComponentType)kTypeId) {}
-    
-    virtual void Start() override;
-};
-
 // "Avoidance system" works out interactions between objects that have AvoidThis and Avoid
 // components. Objects with Avoid component:
 // - when they get closer to AvoidThis than AvoidThis::distance, they bounce back,
@@ -280,23 +260,15 @@ struct AvoidanceSystem
     // objects that avoid: their position components
     std::vector<PositionComponent*> objectList;
     
-    void Initialize()
+    void AddAvoidThisObjectToSystem(PositionComponent* pos, float distance)
     {
-        // find all things to be avoided, and fill our arrays that hold distances & pointers to positions
-        auto avlist = FindAllComponentsOfType<AvoidThisComponent>();
-        avoidDistanceList.resize(avlist.size());
-        avoidPositionList.resize(avlist.size());
-        for (size_t i = 0, n = avlist.size(); i != n; ++i)
-        {
-            AvoidThisComponent* av = (AvoidThisComponent*)avlist[i];
-            avoidDistanceList[i] = av->distance;
-            avoidPositionList[i] = av->GetGameObject().GetComponent<PositionComponent>();
-        }
+        avoidDistanceList.emplace_back(distance);
+        avoidPositionList.emplace_back(pos);
     }
     
-    void AddObjectToSystem(AvoidComponent* av)
+    void AddObjectToSystem(PositionComponent* pos)
     {
-        objectList.emplace_back(av->GetGameObject().GetComponent<PositionComponent>());
+        objectList.emplace_back(pos);
     }
     
     static float DistanceSq(const PositionComponent* a, const PositionComponent* b)
@@ -350,12 +322,6 @@ struct AvoidanceSystem
 
 static AvoidanceSystem s_AvoidanceSystem;
 
-void AvoidComponent::Start()
-{
-    s_AvoidanceSystem.AddObjectToSystem(this);
-}
-
-
 // -------------------------------------------------------------------------------------------------
 // "the game"
 
@@ -399,9 +365,8 @@ extern "C" void game_initialize(void)
         MoveComponent* move = new MoveComponent(0.5f, 0.7f);
         go->AddComponent(move);
 
-        // make it avoid the bubble things
-        AvoidComponent* avoid = new AvoidComponent();
-        go->AddComponent(avoid);
+        // make it avoid the bubble things, by adding to the avoidance system
+        s_AvoidanceSystem.AddObjectToSystem(pos);
 
         s_Objects.emplace_back(go);
     }
@@ -430,16 +395,13 @@ extern "C" void game_initialize(void)
         MoveComponent* move = new MoveComponent(0.1f, 0.2f);
         go->AddComponent(move);
         
-        // setup an "avoid this" component
-        AvoidThisComponent* avoid = new AvoidThisComponent();
-        avoid->distance = 1.3f;
-        go->AddComponent(avoid);
+        // add to avoidance this as "Avoid This" object
+        s_AvoidanceSystem.AddAvoidThisObjectToSystem(pos, 1.3f);
         
         s_Objects.emplace_back(go);
     }
     
     // initialize systems
-    s_AvoidanceSystem.Initialize();
     s_MoveSystem.Initialize();
 
     // call Start on all objects/components once they are all created
