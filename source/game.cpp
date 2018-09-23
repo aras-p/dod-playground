@@ -148,7 +148,8 @@ struct MoveComponent : public Component
 {
     float velx, vely;
     WorldBoundsComponent* bounds;
-    
+    PositionComponent* pos;
+
     MoveComponent(float minSpeed, float maxSpeed)
     {
         // random angle
@@ -163,13 +164,12 @@ struct MoveComponent : public Component
     virtual void Start() override
     {
         bounds = FindOfType<WorldBoundsComponent>();
+        // get Position component on our game object
+        pos = GetGameObject().GetComponent<PositionComponent>();
     }
     
     virtual void Update(double time, float deltaTime) override
     {
-        // get Position component on our game object
-        PositionComponent* pos = GetGameObject().GetComponent<PositionComponent>();
-        
         // update position based on movement velocity & delta time
         pos->x += velx * deltaTime;
         pos->y += vely * deltaTime;
@@ -213,8 +213,12 @@ struct AvoidComponent : public Component
 {
     static ComponentVector avoidList;
     
+    PositionComponent* myposition;
+
     virtual void Start() override
     {
+        myposition = GetGameObject().GetComponent<PositionComponent>();
+
         // fetch list of objects we'll be avoiding, if we haven't done that yet
         if (avoidList.empty())
             avoidList = FindAllComponentsOfType<AvoidThisComponent>();
@@ -242,7 +246,6 @@ struct AvoidComponent : public Component
 
     virtual void Update(double time, float deltaTime) override
     {
-        PositionComponent* myposition = GetGameObject().GetComponent<PositionComponent>();
         // check each thing in avoid list
         for (auto avc : avoidList)
         {
