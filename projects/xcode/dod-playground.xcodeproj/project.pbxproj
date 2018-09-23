@@ -33,7 +33,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2BF4A82D215648DE00F5B5CD = {
+		2BDA283F2157CA660005CB39 /* externals */ = {
 			isa = PBXGroup;
 			children = (
 				2BF4A84E2156497A00F5B5CD /* HandmadeMath.h */,
@@ -42,6 +42,14 @@
 				2BF4A8512156497A00F5B5CD /* sokol_time.h */,
 				2BF4A84C2156497A00F5B5CD /* sokol.m */,
 				2BF4A8522156497A00F5B5CD /* stb_easy_font.h */,
+			);
+			name = externals;
+			sourceTree = "<group>";
+		};
+		2BF4A82D215648DE00F5B5CD = {
+			isa = PBXGroup;
+			children = (
+				2BDA283F2157CA660005CB39 /* externals */,
 				2BF4A84A2156496E00F5B5CD /* application.c */,
 				2BF4A837215648DE00F5B5CD /* Products */,
 			);
