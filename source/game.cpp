@@ -146,8 +146,6 @@ struct WorldBoundsComponent : public Component
 struct MoveComponent : public Component
 {
     float velx, vely;
-    WorldBoundsComponent* bounds;
-    PositionComponent* pos;
 
     MoveComponent(float minSpeed, float maxSpeed)
     {
@@ -159,43 +157,71 @@ struct MoveComponent : public Component
         velx = cosf(angle) * speed;
         vely = sinf(angle) * speed;
     }
+    
+    virtual void Start() override;
+};
 
-    virtual void Start() override
+struct MoveSystem
+{
+    WorldBoundsComponent* bounds;
+    std::vector<PositionComponent*> positionList;
+    std::vector<MoveComponent*> moveList;
+
+    void AddObjectToSystem(MoveComponent* o)
+    {
+        positionList.emplace_back(o->GetGameObject().GetComponent<PositionComponent>());
+        moveList.emplace_back(o);
+    }
+
+    void Initialize()
     {
         bounds = FindOfType<WorldBoundsComponent>();
-        // get Position component on our game object
-        pos = GetGameObject().GetComponent<PositionComponent>();
     }
     
-    virtual void Update(double time, float deltaTime) override
+    void UpdateSystem(double time, float deltaTime)
     {
-        // update position based on movement velocity & delta time
-        pos->x += velx * deltaTime;
-        pos->y += vely * deltaTime;
-        
-        // check against world bounds; put back onto bounds and mirror the velocity component to "bounce" back
-        if (pos->x < bounds->xMin)
+        // go through all the objects
+        for (size_t io = 0, no = positionList.size(); io != no; ++io)
         {
-            velx = -velx;
-            pos->x = bounds->xMin;
-        }
-        if (pos->x > bounds->xMax)
-        {
-            velx = -velx;
-            pos->x = bounds->xMax;
-        }
-        if (pos->y < bounds->yMin)
-        {
-            vely = -vely;
-            pos->y = bounds->yMin;
-        }
-        if (pos->y > bounds->yMax)
-        {
-            vely = -vely;
-            pos->y = bounds->yMax;
+            PositionComponent* pos = positionList[io];
+            MoveComponent* move = moveList[io];
+            
+            // update position based on movement velocity & delta time
+            pos->x += move->velx * deltaTime;
+            pos->y += move->vely * deltaTime;
+            
+            // check against world bounds; put back onto bounds and mirror the velocity component to "bounce" back
+            if (pos->x < bounds->xMin)
+            {
+                move->velx = -move->velx;
+                pos->x = bounds->xMin;
+            }
+            if (pos->x > bounds->xMax)
+            {
+                move->velx = -move->velx;
+                pos->x = bounds->xMax;
+            }
+            if (pos->y < bounds->yMin)
+            {
+                move->vely = -move->vely;
+                pos->y = bounds->yMin;
+            }
+            if (pos->y > bounds->yMax)
+            {
+                move->vely = -move->vely;
+                pos->y = bounds->yMax;
+            }
         }
     }
 };
+
+static MoveSystem s_MoveSystem;
+
+void MoveComponent::Start()
+{
+    s_MoveSystem.AddObjectToSystem(this);
+}
+
 
 
 // When present, tells things that have Avoid component to avoid this object
@@ -383,6 +409,7 @@ extern "C" void game_initialize(void)
     
     // initialize systems
     s_AvoidanceSystem.Initialize();
+    s_MoveSystem.Initialize();
 
     // call Start on all objects/components once they are all created
     for (auto go : s_Objects)
@@ -406,6 +433,7 @@ extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
     int objectCount = 0;
     
     // update object systems
+    s_MoveSystem.UpdateSystem(time, deltaTime);
     s_AvoidanceSystem.UpdateSystem(time, deltaTime);
 
     // go through all objects
