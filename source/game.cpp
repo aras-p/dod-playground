@@ -22,11 +22,22 @@ class Component;
 typedef std::vector<Component*> ComponentVector;
 typedef std::vector<GameObject*> GameObjectVector;
 
+// C++ dynamic_cast is fairly slow, so roll our own super simple "type identification" system,
+// where each component stores an enum for "what type I am?"
+enum ComponentType
+{
+    kCompPosition,
+    kCompSprite,
+    kCompWorldBounds,
+    kCompMove,
+    kCompAvoid,
+    kCompAvoidThis,
+};
+
 // Component base class. Knows about the parent game object, and has some virtual methods.
 class Component
 {
 public:
-    Component() : m_GameObject(nullptr) {}
     virtual ~Component() {}
     
     virtual void Start() {}
@@ -36,9 +47,15 @@ public:
     GameObject& GetGameObject() { return *m_GameObject; }
     void SetGameObject(GameObject& go) { m_GameObject = &go; }
     bool HasGameObject() const { return m_GameObject != nullptr; }
+    
+    ComponentType GetType() const { return m_Type; }
+
+protected:
+    Component(ComponentType type) : m_GameObject(nullptr), m_Type(type) {}
 
 private:
     GameObject* m_GameObject;
+    ComponentType m_Type;
 };
 
 
@@ -57,11 +74,10 @@ public:
     template<typename T>
     T* GetComponent()
     {
-        for (auto i : m_Components)
+        for (auto c : m_Components)
         {
-            T* c = dynamic_cast<T*>(i);
-            if (c != nullptr)
-                return c;
+            if (c->GetType() == T::kTypeId)
+                return (T*)c;
         }
         return nullptr;
     }
@@ -122,6 +138,9 @@ static T* FindOfType()
 // 2D position: just x,y coordinates
 struct PositionComponent : public Component
 {
+    enum { kTypeId = kCompPosition };
+    PositionComponent() : Component((ComponentType)kTypeId) {}
+    
     float x, y;
 };
 
@@ -129,6 +148,9 @@ struct PositionComponent : public Component
 // Sprite: color, sprite index (in the sprite atlas), and scale for rendering it
 struct SpriteComponent : public Component
 {
+    enum { kTypeId = kCompSprite };
+    SpriteComponent() : Component((ComponentType)kTypeId) {}
+
     float colorR, colorG, colorB;
     int spriteIndex;
     float scale;
@@ -138,6 +160,9 @@ struct SpriteComponent : public Component
 // World bounds for our "game" logic: x,y minimum & maximum values
 struct WorldBoundsComponent : public Component
 {
+    enum { kTypeId = kCompWorldBounds };
+    WorldBoundsComponent() : Component((ComponentType)kTypeId) {}
+    
     float xMin, xMax, yMin, yMax;
 };
 
@@ -145,9 +170,11 @@ struct WorldBoundsComponent : public Component
 // Move around with constant velocity. When reached world bounds, reflect back from them.
 struct MoveComponent : public Component
 {
+    enum { kTypeId = kCompMove };
+    
     float velx, vely;
 
-    MoveComponent(float minSpeed, float maxSpeed)
+    MoveComponent(float minSpeed, float maxSpeed) : Component((ComponentType)kTypeId)
     {
         // random angle
         float angle = RandomFloat01() * 3.1415926f * 2;
@@ -227,12 +254,18 @@ void MoveComponent::Start()
 // When present, tells things that have Avoid component to avoid this object
 struct AvoidThisComponent : public Component
 {
+    enum { kTypeId = kCompAvoidThis };
+    AvoidThisComponent() : Component((ComponentType)kTypeId) {}
+    
     float distance;
 };
 
 // Objects with this component "avoid" objects with AvoidThis component.
 struct AvoidComponent : public Component
 {
+    enum { kTypeId = kCompAvoid };
+    AvoidComponent() : Component((ComponentType)kTypeId) {}
+    
     virtual void Start() override;
 };
 
