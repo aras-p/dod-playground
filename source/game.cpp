@@ -22,7 +22,6 @@ class Component;
 typedef std::vector<Component*> ComponentVector;
 typedef std::vector<GameObject*> GameObjectVector;
 
-
 // Component base class. Knows about the parent game object, and has some virtual methods.
 class Component
 {
@@ -212,6 +211,7 @@ struct AvoidThisComponent : public Component
 struct AvoidComponent : public Component
 {
     static ComponentVector avoidList;
+    static ComponentVector avoidPositionList;
     
     PositionComponent* myposition;
 
@@ -221,7 +221,12 @@ struct AvoidComponent : public Component
 
         // fetch list of objects we'll be avoiding, if we haven't done that yet
         if (avoidList.empty())
+        {
             avoidList = FindAllComponentsOfType<AvoidThisComponent>();
+            // cache pointers to Position component of each of the AvoidThis object
+            for (auto av : avoidList)
+                avoidPositionList.emplace_back(av->GetGameObject().GetComponent<PositionComponent>());
+        }
     }
     
     static float DistanceSq(const PositionComponent* a, const PositionComponent* b)
@@ -247,11 +252,11 @@ struct AvoidComponent : public Component
     virtual void Update(double time, float deltaTime) override
     {
         // check each thing in avoid list
-        for (auto avc : avoidList)
+        for (size_t ia = 0, in = avoidList.size(); ia != in; ++ia)
         {
-            AvoidThisComponent* av = (AvoidThisComponent*)avc;
-
-            PositionComponent* avoidposition = av->GetGameObject().GetComponent<PositionComponent>();
+            AvoidThisComponent* av = (AvoidThisComponent*)avoidList[ia];
+            PositionComponent* avoidposition = (PositionComponent*)avoidPositionList[ia];
+            
             // is our position closer to "thing to avoid" position than the avoid distance?
             if (DistanceSq(myposition, avoidposition) < av->distance * av->distance)
             {
@@ -269,6 +274,7 @@ struct AvoidComponent : public Component
 };
 
 ComponentVector AvoidComponent::avoidList;
+ComponentVector AvoidComponent::avoidPositionList;
 
 
 // -------------------------------------------------------------------------------------------------
