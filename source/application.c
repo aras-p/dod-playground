@@ -1,21 +1,19 @@
 #include "external/sokol_gfx.h"
 #include "external/sokol_app.h"
+#include "external/sokol_time.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "external/stb_image.h"
+
+#include "game.h"
 
 extern const char *vs_src, *fs_src;
 
 const int SAMPLE_COUNT = 4;
 sg_draw_state draw_state;
 
-const int MAX_INSTANCE_COUNT = 100000;
-typedef struct
-{
-    float posX, posY;
-    float scale;
-    float color[4];
-} instance_params_t;
+static sprite_data_t* sprite_data;
+static uint64_t time;
 
 typedef struct {
     float aspect;
@@ -34,7 +32,7 @@ void init(void) {
 
     /* empty, dynamic instance-data vertex buffer*/
     sg_buffer instancebuf = sg_make_buffer(&(sg_buffer_desc){
-        .size = MAX_INSTANCE_COUNT * sizeof(instance_params_t),
+        .size = kMaxSpriteCount * sizeof(sprite_data_t),
         .usage = SG_USAGE_STREAM
     });
 
@@ -104,6 +102,10 @@ void init(void) {
         .index_buffer = ibuf,
         .fs_images[0] = tex,
     };
+    
+    stm_setup();
+    sprite_data = (sprite_data_t*)malloc(kMaxSpriteCount * sizeof(sprite_data_t));
+    game_initialize();
 }
 
 void frame(void) {
@@ -111,33 +113,26 @@ void frame(void) {
     const float w = (float) sapp_width();
     const float h = (float) sapp_height();
     vs_params.aspect = w / h;
-    
-    const int kInstanceCount = 13;
-    instance_params_t idata[kInstanceCount];
-    for (int i = 0; i < kInstanceCount; ++i)
-    {
-        idata[i].posX = i * 0.1f;
-        idata[i].posY = i * 0.02f;
-        idata[i].scale = 0.1f;
-        idata[i].color[0] = 1.0f;
-        idata[i].color[1] = i * 0.2f;
-        idata[i].color[2] = 1.0f - i * 0.1f;
-        idata[i].color[3] = 1.0f;
-    }
-    sg_update_buffer(draw_state.vertex_buffers[0], idata, kInstanceCount*sizeof(idata[0]));
+
+    uint64_t dt = stm_laptime(&time);
+    int sprite_count = game_update(sprite_data, stm_sec(time), (float)stm_sec(dt));
+    assert(sprite_count >= 0 && sprite_count <= kMaxSpriteCount);
+    sg_update_buffer(draw_state.vertex_buffers[0], sprite_data, sprite_count * sizeof(sprite_data[0]));
 
     sg_pass_action pass_action = {
-        .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.25f, 0.5f, 0.75f, 1.0f } }
+        .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.1f, 0.1f, 0.1f, 1.0f } }
     };
     sg_begin_default_pass(&pass_action, (int)w, (int)h);
     sg_apply_draw_state(&draw_state);
     sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
-    sg_draw(0, 6, kInstanceCount);
+    if (sprite_count > 0)
+        sg_draw(0, 6, sprite_count);
     sg_end_pass();
     sg_commit();
 }
 
 void cleanup(void) {
+    game_destroy();
     sg_shutdown();
 }
 

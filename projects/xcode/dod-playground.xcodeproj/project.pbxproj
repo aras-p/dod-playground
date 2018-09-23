@@ -7,12 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2BDA28442157DD150005CB39 /* game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BDA28422157DD150005CB39 /* game.cpp */; };
 		2BF4A84B2156496E00F5B5CD /* application.c in Sources */ = {isa = PBXBuildFile; fileRef = 2BF4A84A2156496E00F5B5CD /* application.c */; };
 		2BF4A8532156497A00F5B5CD /* sokol.m in Sources */ = {isa = PBXBuildFile; fileRef = 2BF4A84C2156497A00F5B5CD /* sokol.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		2BDA28402157CC1B0005CB39 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = ../../source/external/stb_image.h; sourceTree = "<group>"; };
+		2BDA28422157DD150005CB39 /* game.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = game.cpp; path = ../../source/game.cpp; sourceTree = "<group>"; };
+		2BDA28432157DD150005CB39 /* game.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = game.h; path = ../../source/game.h; sourceTree = "<group>"; };
 		2BF4A836215648DE00F5B5CD /* dod-playground.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "dod-playground.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF4A84A2156496E00F5B5CD /* application.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = application.c; path = ../../source/application.c; sourceTree = "<group>"; };
 		2BF4A84C2156497A00F5B5CD /* sokol.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = sokol.m; path = ../../source/external/sokol.m; sourceTree = "<group>"; };
@@ -49,8 +52,10 @@
 		2BF4A82D215648DE00F5B5CD = {
 			isa = PBXGroup;
 			children = (
-				2BDA283F2157CA660005CB39 /* externals */,
+				2BDA28422157DD150005CB39 /* game.cpp */,
+				2BDA28432157DD150005CB39 /* game.h */,
 				2BF4A84A2156496E00F5B5CD /* application.c */,
+				2BDA283F2157CA660005CB39 /* externals */,
 				2BF4A837215648DE00F5B5CD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -132,6 +137,7 @@
 			files = (
 				2BF4A8532156497A00F5B5CD /* sokol.m in Sources */,
 				2BF4A84B2156496E00F5B5CD /* application.c in Sources */,
+				2BDA28442157DD150005CB39 /* game.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
