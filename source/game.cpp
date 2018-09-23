@@ -204,29 +204,42 @@ struct AvoidThisComponent : public Component
     float distance;
 };
 
-
-// Objects with this component "avoid" objects with AvoidThis component:
-// - when they get closer to them than Avoid::distance, they bounce back,
-// - also they take sprite color from the object they just bumped into
+// Objects with this component "avoid" objects with AvoidThis component.
 struct AvoidComponent : public Component
 {
-    static ComponentVector avoidList;
-    static ComponentVector avoidPositionList;
+    virtual void Start() override;
+};
+
+// "Avoidance system" works out interactions between objects that have AvoidThis and Avoid
+// components. Objects with Avoid component:
+// - when they get closer to AvoidThis than AvoidThis::distance, they bounce back,
+// - also they take sprite color from the object they just bumped into
+struct AvoidanceSystem
+{
+    // things to be avoided: distances to them, and their position components
+    std::vector<float> avoidDistanceList;
+    std::vector<PositionComponent*> avoidPositionList;
     
-    PositionComponent* myposition;
-
-    virtual void Start() override
+    // objects that avoid: their position components
+    std::vector<PositionComponent*> objectList;
+    
+    void Initialize()
     {
-        myposition = GetGameObject().GetComponent<PositionComponent>();
-
-        // fetch list of objects we'll be avoiding, if we haven't done that yet
-        if (avoidList.empty())
+        // find all things to be avoided, and fill our arrays that hold distances & pointers to positions
+        auto avlist = FindAllComponentsOfType<AvoidThisComponent>();
+        avoidDistanceList.resize(avlist.size());
+        avoidPositionList.resize(avlist.size());
+        for (size_t i = 0, n = avlist.size(); i != n; ++i)
         {
-            avoidList = FindAllComponentsOfType<AvoidThisComponent>();
-            // cache pointers to Position component of each of the AvoidThis object
-            for (auto av : avoidList)
-                avoidPositionList.emplace_back(av->GetGameObject().GetComponent<PositionComponent>());
+            AvoidThisComponent* av = (AvoidThisComponent*)avlist[i];
+            avoidDistanceList[i] = av->distance;
+            avoidPositionList[i] = av->GetGameObject().GetComponent<PositionComponent>();
         }
+    }
+    
+    void AddObjectToSystem(AvoidComponent* av)
+    {
+        objectList.emplace_back(av->GetGameObject().GetComponent<PositionComponent>());
     }
     
     static float DistanceSq(const PositionComponent* a, const PositionComponent* b)
@@ -236,45 +249,54 @@ struct AvoidComponent : public Component
         return dx * dx + dy * dy;
     }
     
-    void ResolveCollision(float deltaTime)
+    void ResolveCollision(PositionComponent* pos, float deltaTime)
     {
-        MoveComponent* move = GetGameObject().GetComponent<MoveComponent>();
+        MoveComponent* move = pos->GetGameObject().GetComponent<MoveComponent>();
         // flip velocity
         move->velx = -move->velx;
         move->vely = -move->vely;
         
         // move us out of collision, by moving just a tiny bit more than we'd normally move during a frame
-        PositionComponent* pos = GetGameObject().GetComponent<PositionComponent>();
         pos->x += move->velx * deltaTime * 1.1f;
         pos->y += move->vely * deltaTime * 1.1f;
     }
-
-    virtual void Update(double time, float deltaTime) override
+    
+    void UpdateSystem(double time, float deltaTime)
     {
-        // check each thing in avoid list
-        for (size_t ia = 0, in = avoidList.size(); ia != in; ++ia)
+        // go through all the objects
+        for (size_t io = 0, no = objectList.size(); io != no; ++io)
         {
-            AvoidThisComponent* av = (AvoidThisComponent*)avoidList[ia];
-            PositionComponent* avoidposition = (PositionComponent*)avoidPositionList[ia];
-            
-            // is our position closer to "thing to avoid" position than the avoid distance?
-            if (DistanceSq(myposition, avoidposition) < av->distance * av->distance)
-            {
-                ResolveCollision(deltaTime);
+            PositionComponent* myposition = objectList[io];
 
-                // also make our sprite take the color of the thing we just bumped into
-                SpriteComponent* avoidSprite = av->GetGameObject().GetComponent<SpriteComponent>();
-                SpriteComponent* mySprite = GetGameObject().GetComponent<SpriteComponent>();
-                mySprite->colorR = avoidSprite->colorR;
-                mySprite->colorG = avoidSprite->colorG;
-                mySprite->colorB = avoidSprite->colorB;
+            // check each thing in avoid list
+            for (size_t ia = 0, na = avoidPositionList.size(); ia != na; ++ia)
+            {
+                float avDistance = avoidDistanceList[ia];
+                PositionComponent* avoidposition = avoidPositionList[ia];
+                
+                // is our position closer to "thing to avoid" position than the avoid distance?
+                if (DistanceSq(myposition, avoidposition) < avDistance * avDistance)
+                {
+                    ResolveCollision(myposition, deltaTime);
+                    
+                    // also make our sprite take the color of the thing we just bumped into
+                    SpriteComponent* avoidSprite = avoidposition->GetGameObject().GetComponent<SpriteComponent>();
+                    SpriteComponent* mySprite = myposition->GetGameObject().GetComponent<SpriteComponent>();
+                    mySprite->colorR = avoidSprite->colorR;
+                    mySprite->colorG = avoidSprite->colorG;
+                    mySprite->colorB = avoidSprite->colorB;
+                }
             }
         }
     }
 };
 
-ComponentVector AvoidComponent::avoidList;
-ComponentVector AvoidComponent::avoidPositionList;
+static AvoidanceSystem s_AvoidanceSystem;
+
+void AvoidComponent::Start()
+{
+    s_AvoidanceSystem.AddObjectToSystem(this);
+}
 
 
 // -------------------------------------------------------------------------------------------------
@@ -358,6 +380,9 @@ extern "C" void game_initialize(void)
         
         s_Objects.emplace_back(go);
     }
+    
+    // initialize systems
+    s_AvoidanceSystem.Initialize();
 
     // call Start on all objects/components once they are all created
     for (auto go : s_Objects)
@@ -379,6 +404,10 @@ extern "C" void game_destroy(void)
 extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
 {
     int objectCount = 0;
+    
+    // update object systems
+    s_AvoidanceSystem.UpdateSystem(time, deltaTime);
+
     // go through all objects
     for (auto go : s_Objects)
     {
