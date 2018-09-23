@@ -41,7 +41,6 @@ public:
     virtual ~Component() {}
     
     virtual void Start() {}
-    virtual void Update(double time, float deltaTime) {}
 
     const GameObject& GetGameObject() const { return *m_GameObject; }
     GameObject& GetGameObject() { return *m_GameObject; }
@@ -91,7 +90,6 @@ public:
     }
     
     void Start() { for (auto c : m_Components) c->Start(); }
-    void Update(double time, float deltaTime) { for (auto c : m_Components) c->Update(time, deltaTime); }
     
 private:
     std::string m_Name;
@@ -472,9 +470,6 @@ extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
     // go through all objects
     for (auto go : s_Objects)
     {
-        // Update all their components
-        go->Update(time, deltaTime);
-
         // For objects that have a Position & Sprite on them: write out
         // their data into destination buffer that will be rendered later on.
         //
