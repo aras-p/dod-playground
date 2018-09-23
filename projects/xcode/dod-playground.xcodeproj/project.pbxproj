@@ -12,11 +12,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		2BDA28402157CC1B0005CB39 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_image.h; path = ../../source/external/stb_image.h; sourceTree = "<group>"; };
 		2BF4A836215648DE00F5B5CD /* dod-playground.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "dod-playground.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2BF4A84A2156496E00F5B5CD /* application.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = application.c; path = ../../source/application.c; sourceTree = "<group>"; };
 		2BF4A84C2156497A00F5B5CD /* sokol.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = sokol.m; path = ../../source/external/sokol.m; sourceTree = "<group>"; };
 		2BF4A84D2156497A00F5B5CD /* sokol_app.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sokol_app.h; path = ../../source/external/sokol_app.h; sourceTree = "<group>"; };
-		2BF4A84E2156497A00F5B5CD /* HandmadeMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = HandmadeMath.h; path = ../../source/external/HandmadeMath.h; sourceTree = "<group>"; };
 		2BF4A84F2156497A00F5B5CD /* sokol_gfx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sokol_gfx.h; path = ../../source/external/sokol_gfx.h; sourceTree = "<group>"; };
 		2BF4A8512156497A00F5B5CD /* sokol_time.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sokol_time.h; path = ../../source/external/sokol_time.h; sourceTree = "<group>"; };
 		2BF4A8522156497A00F5B5CD /* stb_easy_font.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_easy_font.h; path = ../../source/external/stb_easy_font.h; sourceTree = "<group>"; };
@@ -36,7 +36,7 @@
 		2BDA283F2157CA660005CB39 /* externals */ = {
 			isa = PBXGroup;
 			children = (
-				2BF4A84E2156497A00F5B5CD /* HandmadeMath.h */,
+				2BDA28402157CC1B0005CB39 /* stb_image.h */,
 				2BF4A84D2156497A00F5B5CD /* sokol_app.h */,
 				2BF4A84F2156497A00F5B5CD /* sokol_gfx.h */,
 				2BF4A8512156497A00F5B5CD /* sokol_time.h */,
