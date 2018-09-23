@@ -1,18 +1,24 @@
-#define HANDMADE_MATH_IMPLEMENTATION
-#define HANDMADE_MATH_NO_SSE
-#include "external/HandmadeMath.h"
 #include "external/sokol_gfx.h"
 #include "external/sokol_app.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "external/stb_image.h"
 
 extern const char *vs_src, *fs_src;
 
 const int SAMPLE_COUNT = 4;
-float rx = 0.0f;
-float ry = 0.0f;
 sg_draw_state draw_state;
 
+const int MAX_INSTANCE_COUNT = 100000;
+typedef struct
+{
+    float posX, posY;
+    float scale;
+    float color[4];
+} instance_params_t;
+
 typedef struct {
-    hmm_mat4 mvp;
+    float aspect;
 } vs_params_t;
 
 void init(void) {
@@ -26,51 +32,15 @@ void init(void) {
         .d3d11_depth_stencil_view_cb = sapp_d3d11_get_depth_stencil_view
     });
 
-    /* cube vertex buffer */
-    float vertices[] = {
-        -1.0, -1.0, -1.0,   1.0, 0.0, 0.0, 1.0,
-         1.0, -1.0, -1.0,   1.0, 0.0, 0.0, 1.0,
-         1.0,  1.0, -1.0,   1.0, 0.0, 0.0, 1.0,
-        -1.0,  1.0, -1.0,   1.0, 0.0, 0.0, 1.0,
-
-        -1.0, -1.0,  1.0,   0.0, 1.0, 0.0, 1.0,
-         1.0, -1.0,  1.0,   0.0, 1.0, 0.0, 1.0,
-         1.0,  1.0,  1.0,   0.0, 1.0, 0.0, 1.0,
-        -1.0,  1.0,  1.0,   0.0, 1.0, 0.0, 1.0,
-
-        -1.0, -1.0, -1.0,   0.0, 0.0, 1.0, 1.0,
-        -1.0,  1.0, -1.0,   0.0, 0.0, 1.0, 1.0,
-        -1.0,  1.0,  1.0,   0.0, 0.0, 1.0, 1.0,
-        -1.0, -1.0,  1.0,   0.0, 0.0, 1.0, 1.0,
-
-        1.0, -1.0, -1.0,    1.0, 0.5, 0.0, 1.0,
-        1.0,  1.0, -1.0,    1.0, 0.5, 0.0, 1.0,
-        1.0,  1.0,  1.0,    1.0, 0.5, 0.0, 1.0,
-        1.0, -1.0,  1.0,    1.0, 0.5, 0.0, 1.0,
-
-        -1.0, -1.0, -1.0,   0.0, 0.5, 1.0, 1.0,
-        -1.0, -1.0,  1.0,   0.0, 0.5, 1.0, 1.0,
-         1.0, -1.0,  1.0,   0.0, 0.5, 1.0, 1.0,
-         1.0, -1.0, -1.0,   0.0, 0.5, 1.0, 1.0,
-
-        -1.0,  1.0, -1.0,   1.0, 0.0, 0.5, 1.0,
-        -1.0,  1.0,  1.0,   1.0, 0.0, 0.5, 1.0,
-         1.0,  1.0,  1.0,   1.0, 0.0, 0.5, 1.0,
-         1.0,  1.0, -1.0,   1.0, 0.0, 0.5, 1.0
-    };
-    sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-        .size = sizeof(vertices),
-        .content = vertices,
+    /* empty, dynamic instance-data vertex buffer*/
+    sg_buffer instancebuf = sg_make_buffer(&(sg_buffer_desc){
+        .size = MAX_INSTANCE_COUNT * sizeof(instance_params_t),
+        .usage = SG_USAGE_STREAM
     });
 
-    /* create an index buffer for the cube */
+    /* create an index buffer for a quad */
     uint16_t indices[] = {
-        0, 1, 2,  0, 2, 3,
-        6, 5, 4,  7, 6, 4,
-        8, 9, 10,  8, 10, 11,
-        14, 13, 12,  15, 14, 12,
-        16, 17, 18,  16, 18, 19,
-        22, 21, 20,  23, 22, 20
+        0, 1, 2,  2, 1, 3,
     };
     sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
         .type = SG_BUFFERTYPE_INDEXBUFFER,
@@ -81,24 +51,34 @@ void init(void) {
     /* create shader */
     sg_shader shd = sg_make_shader(&(sg_shader_desc) {
         .vs.uniform_blocks[0] = {
-            .size = sizeof(vs_params_t),
-            .uniforms = {
-                [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 }
-            }
+            .size = sizeof(vs_params_t)
         },
         .vs.source = vs_src,
         .fs.source = fs_src,
     });
+    
+    /* create an image */
+    int texX, texY, texN;
+    uint8_t* texData = stbi_load("data/SpaceCute-Girl4.png", &texX, &texY, &texN, 4);
+    sg_image tex = sg_make_image(&(sg_image_desc){
+        .width = texX,
+        .height = texY,
+        .min_filter = SG_FILTER_LINEAR,
+        .mag_filter = SG_FILTER_LINEAR,
+        .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+        .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
+        .content.subimage[0][0] = { .ptr = texData, .size = texX * texY * 4 }
+    });
+    stbi_image_free(texData);
 
     /* create pipeline object */
     sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
         .layout = {
-            /* test to provide buffer stride, but no attr offsets */
-            .buffers[0].stride = 28,
+            .buffers[0].step_func = SG_VERTEXSTEP_PER_INSTANCE,
             .attrs = {
-                [0] = { .name="position", .sem_name="POS", .format=SG_VERTEXFORMAT_FLOAT3 },
-                [1] = { .name="color0", .sem_name="COLOR", .format=SG_VERTEXFORMAT_FLOAT4 }
-            }
+                [0] = { .format=SG_VERTEXFORMAT_FLOAT3 }, // instance pos + scale
+                [1] = { .format=SG_VERTEXFORMAT_FLOAT4 }, // instance color
+            },
         },
         .shader = shd,
         .index_type = SG_INDEXTYPE_UINT16,
@@ -106,15 +86,23 @@ void init(void) {
             .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
             .depth_write_enabled = true,
         },
-        .rasterizer.cull_mode = SG_CULLMODE_BACK,
+        .rasterizer.cull_mode = SG_CULLMODE_NONE,
         .rasterizer.sample_count = SAMPLE_COUNT,
+        .blend = {
+            .enabled = true,
+            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            .src_factor_alpha = SG_BLENDFACTOR_SRC_ALPHA,
+            .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        },
     });
 
     /* draw state struct with resource bindings */
     draw_state = (sg_draw_state) {
         .pipeline = pip,
-        .vertex_buffers[0] = vbuf,
-        .index_buffer = ibuf
+        .vertex_buffers[0] = instancebuf,
+        .index_buffer = ibuf,
+        .fs_images[0] = tex,
     };
 }
 
@@ -122,14 +110,21 @@ void frame(void) {
     vs_params_t vs_params;
     const float w = (float) sapp_width();
     const float h = (float) sapp_height();
-    hmm_mat4 proj = HMM_Perspective(60.0f, w/h, 0.01f, 10.0f);
-    hmm_mat4 view = HMM_LookAt(HMM_Vec3(0.0f, 1.5f, 6.0f), HMM_Vec3(0.0f, 0.0f, 0.0f), HMM_Vec3(0.0f, 1.0f, 0.0f));
-    hmm_mat4 view_proj = HMM_MultiplyMat4(proj, view);
-    rx += 1.0f; ry += 2.0f;
-    hmm_mat4 rxm = HMM_Rotate(rx, HMM_Vec3(1.0f, 0.0f, 0.0f));
-    hmm_mat4 rym = HMM_Rotate(ry, HMM_Vec3(0.0f, 1.0f, 0.0f));
-    hmm_mat4 model = HMM_MultiplyMat4(rxm, rym);
-    vs_params.mvp = HMM_MultiplyMat4(view_proj, model);
+    vs_params.aspect = w / h;
+    
+    const int kInstanceCount = 13;
+    instance_params_t idata[kInstanceCount];
+    for (int i = 0; i < kInstanceCount; ++i)
+    {
+        idata[i].posX = i * 0.1f;
+        idata[i].posY = i * 0.02f;
+        idata[i].scale = 0.1f;
+        idata[i].color[0] = 1.0f;
+        idata[i].color[1] = i * 0.2f;
+        idata[i].color[2] = 1.0f - i * 0.1f;
+        idata[i].color[3] = 1.0f;
+    }
+    sg_update_buffer(draw_state.vertex_buffers[0], idata, kInstanceCount*sizeof(idata[0]));
 
     sg_pass_action pass_action = {
         .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.25f, 0.5f, 0.75f, 1.0f } }
@@ -137,7 +132,7 @@ void frame(void) {
     sg_begin_default_pass(&pass_action, (int)w, (int)h);
     sg_apply_draw_state(&draw_state);
     sg_apply_uniform_block(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
-    sg_draw(0, 36, 100);
+    sg_draw(0, 6, kInstanceCount);
     sg_end_pass();
     sg_commit();
 }
@@ -163,30 +158,41 @@ const char* vs_src =
     "#include <metal_stdlib>\n"
     "using namespace metal;\n"
     "struct params_t {\n"
-    "  float4x4 mvp;\n"
+    "  float aspect;\n"
     "};\n"
     "struct vs_in {\n"
-    "  float4 position [[attribute(0)]];\n"
+    "  float3 posscale [[attribute(0)]];\n"
     "  float4 color [[attribute(1)]];\n"
     "};\n"
-    "struct vs_out {\n"
-    "  float4 pos [[position]];\n"
+    "struct v2f {\n"
     "  float4 color;\n"
+    "  float2 uv;\n"
+    "  float4 pos [[position]];\n"
     "};\n"
-    "vertex vs_out _main(vs_in in [[stage_in]], ushort iid [[instance_id]], constant params_t& params [[buffer(0)]]) {\n"
-    "  vs_out out;\n"
-    "  in.position.x += iid * 0.1f;\n"
-    "  in.position.y += iid * 0.3f;\n"
-    "  in.position.z += iid * 0.4f;\n"
-    "  out.pos = params.mvp * in.position;\n"
+    "vertex v2f _main(vs_in in [[stage_in]], ushort vid [[vertex_id]], constant params_t& params [[buffer(0)]]) {\n"
+    "  v2f out;\n"
+    "  float x = vid / 2;\n"
+    "  float y = vid & 1;\n"
+    "  out.pos.x = in.posscale.x + x * in.posscale.z;\n"
+    "  out.pos.y = in.posscale.y + y * in.posscale.z * params.aspect;\n"
+    "  out.pos.z = 0.0f;\n"
+    "  out.pos.w = 1.0f;\n"
+    "  out.uv = float2(x,1-y);\n"
     "  out.color = in.color;\n"
     "  return out;\n"
     "}\n";
 const char* fs_src =
     "#include <metal_stdlib>\n"
     "using namespace metal;\n"
-    "fragment float4 _main(float4 color [[stage_in]]) {\n"
-    "  return color;\n"
+    "struct v2f {\n"
+    "  float4 color;\n"
+    "  float2 uv;\n"
+    "  float4 pos [[position]];\n"
+    "};\n"
+    "fragment float4 _main(v2f in [[stage_in]], texture2d<float> tex0 [[texture(0)]], sampler smp0 [[sampler(0)]]) {\n"
+    "  float4 diffuse = tex0.sample(smp0, in.uv);"
+    "  diffuse.rgb *= in.color.rgb;\n"
+    "  return diffuse;\n"
     "}\n";
 #elif defined(SOKOL_D3D11)
 const char* vs_src =
