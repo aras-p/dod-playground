@@ -139,38 +139,38 @@ struct MoveSystem
     
     void UpdateSystem(double time, float deltaTime)
     {
-        const WorldBoundsComponent* bounds = &s_Objects.m_WorldBounds[boundsID];
+        const WorldBoundsComponent& bounds = s_Objects.m_WorldBounds[boundsID];
 
         // go through all the objects
         for (size_t io = 0, no = entities.size(); io != no; ++io)
         {
-            PositionComponent* pos = &s_Objects.m_Positions[io];
-            MoveComponent* move = &s_Objects.m_Moves[io];
+            PositionComponent& pos = s_Objects.m_Positions[io];
+            MoveComponent& move = s_Objects.m_Moves[io];
             
             // update position based on movement velocity & delta time
-            pos->x += move->velx * deltaTime;
-            pos->y += move->vely * deltaTime;
+            pos.x += move.velx * deltaTime;
+            pos.y += move.vely * deltaTime;
             
             // check against world bounds; put back onto bounds and mirror the velocity component to "bounce" back
-            if (pos->x < bounds->xMin)
+            if (pos.x < bounds.xMin)
             {
-                move->velx = -move->velx;
-                pos->x = bounds->xMin;
+                move.velx = -move.velx;
+                pos.x = bounds.xMin;
             }
-            if (pos->x > bounds->xMax)
+            if (pos.x > bounds.xMax)
             {
-                move->velx = -move->velx;
-                pos->x = bounds->xMax;
+                move.velx = -move.velx;
+                pos.x = bounds.xMax;
             }
-            if (pos->y < bounds->yMin)
+            if (pos.y < bounds.yMin)
             {
-                move->vely = -move->vely;
-                pos->y = bounds->yMin;
+                move.vely = -move.vely;
+                pos.y = bounds.yMin;
             }
-            if (pos->y > bounds->yMax)
+            if (pos.y > bounds.yMax)
             {
-                move->vely = -move->vely;
-                pos->y = bounds->yMax;
+                move.vely = -move.vely;
+                pos.y = bounds.yMax;
             }
         }
     }
@@ -204,25 +204,25 @@ struct AvoidanceSystem
         objectList.emplace_back(id);
     }
     
-    static float DistanceSq(const PositionComponent* a, const PositionComponent* b)
+    static float DistanceSq(const PositionComponent& a, const PositionComponent& b)
     {
-        float dx = a->x - b->x;
-        float dy = a->y - b->y;
+        float dx = a.x - b.x;
+        float dy = a.y - b.y;
         return dx * dx + dy * dy;
     }
     
     void ResolveCollision(EntityID id, float deltaTime)
     {
-        PositionComponent* pos = &s_Objects.m_Positions[id];
-        MoveComponent* move = &s_Objects.m_Moves[id];
+        PositionComponent& pos = s_Objects.m_Positions[id];
+        MoveComponent& move = s_Objects.m_Moves[id];
 
         // flip velocity
-        move->velx = -move->velx;
-        move->vely = -move->vely;
+        move.velx = -move.velx;
+        move.vely = -move.vely;
         
         // move us out of collision, by moving just a tiny bit more than we'd normally move during a frame
-        pos->x += move->velx * deltaTime * 1.1f;
-        pos->y += move->vely * deltaTime * 1.1f;
+        pos.x += move.velx * deltaTime * 1.1f;
+        pos.y += move.vely * deltaTime * 1.1f;
     }
     
     void UpdateSystem(double time, float deltaTime)
@@ -231,14 +231,14 @@ struct AvoidanceSystem
         for (size_t io = 0, no = objectList.size(); io != no; ++io)
         {
             EntityID go = objectList[io];
-            PositionComponent* myposition = &s_Objects.m_Positions[go];
+            const PositionComponent& myposition = s_Objects.m_Positions[go];
 
             // check each thing in avoid list
             for (size_t ia = 0, na = avoidList.size(); ia != na; ++ia)
             {
                 float avDistance = avoidDistanceList[ia];
                 EntityID avoid = avoidList[ia];
-                PositionComponent* avoidposition = &s_Objects.m_Positions[avoid];
+                const PositionComponent& avoidposition = s_Objects.m_Positions[avoid];
                 
                 // is our position closer to "thing to avoid" position than the avoid distance?
                 if (DistanceSq(myposition, avoidposition) < avDistance * avDistance)
@@ -246,11 +246,11 @@ struct AvoidanceSystem
                     ResolveCollision(go, deltaTime);
                     
                     // also make our sprite take the color of the thing we just bumped into
-                    SpriteComponent* avoidSprite = &s_Objects.m_Sprites[avoid];
-                    SpriteComponent* mySprite = &s_Objects.m_Sprites[go];
-                    mySprite->colorR = avoidSprite->colorR;
-                    mySprite->colorG = avoidSprite->colorG;
-                    mySprite->colorB = avoidSprite->colorB;
+                    SpriteComponent& avoidSprite = s_Objects.m_Sprites[avoid];
+                    SpriteComponent& mySprite = s_Objects.m_Sprites[go];
+                    mySprite.colorR = avoidSprite.colorR;
+                    mySprite.colorG = avoidSprite.colorG;
+                    mySprite.colorB = avoidSprite.colorB;
                 }
             }
         }
