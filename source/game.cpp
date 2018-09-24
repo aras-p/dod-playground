@@ -59,33 +59,63 @@ struct MoveComponent
 
 
 // -------------------------------------------------------------------------------------------------
-// super simple "game object system". each object has data for all possible components,
-// as well as flags indicating which ones are actually present.
+// super simple "game entities system", using struct-of-arrays data layout.
+// we just have an array for each possible component, and a flags array bit bits indicating
+// which components are "present".
 
-struct GameObject
+// "ID" of a game object is just an index into the scene array.
+typedef size_t EntityID;
+
+struct Entities
 {
-    GameObject(const std::string&& name) : m_Name(name), m_HasPosition(0), m_HasSprite(0), m_HasWorldBounds(0), m_HasMove(0) { }
-    ~GameObject() {}
+    enum
+    {
+        kFlagPosition = 1<<0,
+        kFlagSprite = 1<<1,
+        kFlagWorldBounds = 1<<2,
+        kFlagMove = 1<<3,
+    };
+
+    // arrays of data; the sizes of all of them are the same. EntityID (just an index)
+    // is used to access data for any "object/entity". The "object" itself is nothing
+    // more than just an index into these arrays.
     
-    std::string m_Name;
+    // names of each object
+    std::vector<std::string> m_Names;
     // data for all components
-    PositionComponent m_Position;
-    SpriteComponent m_Sprite;
-    WorldBoundsComponent m_WorldBounds;
-    MoveComponent m_Move;
-    // flags for every component, indicating whether this object "has it"
-    int m_HasPosition : 1;
-    int m_HasSprite : 1;
-    int m_HasWorldBounds : 1;
-    int m_HasMove : 1;
+    std::vector<PositionComponent> m_Positions;
+    std::vector<SpriteComponent> m_Sprites;
+    std::vector<WorldBoundsComponent> m_WorldBounds;
+    std::vector<MoveComponent> m_Moves;
+    // bit flags for every component, indicating whether this object "has it"
+    std::vector<int> m_Flags;
+    
+    void reserve(size_t n)
+    {
+        m_Names.reserve(n);
+        m_Positions.reserve(n);
+        m_Sprites.reserve(n);
+        m_WorldBounds.reserve(n);
+        m_Moves.reserve(n);
+        m_Flags.reserve(n);
+    }
+    
+    EntityID AddEntity(const std::string&& name)
+    {
+        EntityID id = m_Names.size();
+        m_Names.emplace_back(name);
+        m_Positions.push_back(PositionComponent());
+        m_Sprites.push_back(SpriteComponent());
+        m_WorldBounds.push_back(WorldBoundsComponent());
+        m_Moves.push_back(MoveComponent());
+        m_Flags.push_back(0);
+        return id;
+    }
 };
 
 
-// The "scene": array of game objects.
-// "ID" of a game object is just an index into the scene array.
-typedef size_t EntityID;
-typedef std::vector<GameObject> GameObjectVector;
-static GameObjectVector s_Objects;
+// The "scene"
+static Entities s_Objects;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -109,13 +139,13 @@ struct MoveSystem
     
     void UpdateSystem(double time, float deltaTime)
     {
-        const WorldBoundsComponent* bounds = &s_Objects[boundsID].m_WorldBounds;
+        const WorldBoundsComponent* bounds = &s_Objects.m_WorldBounds[boundsID];
 
         // go through all the objects
         for (size_t io = 0, no = entities.size(); io != no; ++io)
         {
-            PositionComponent* pos = &s_Objects[io].m_Position;
-            MoveComponent* move = &s_Objects[io].m_Move;
+            PositionComponent* pos = &s_Objects.m_Positions[io];
+            MoveComponent* move = &s_Objects.m_Moves[io];
             
             // update position based on movement velocity & delta time
             pos->x += move->velx * deltaTime;
@@ -181,10 +211,10 @@ struct AvoidanceSystem
         return dx * dx + dy * dy;
     }
     
-    void ResolveCollision(GameObject& go, float deltaTime)
+    void ResolveCollision(EntityID id, float deltaTime)
     {
-        PositionComponent* pos = &go.m_Position;
-        MoveComponent* move = &go.m_Move;
+        PositionComponent* pos = &s_Objects.m_Positions[id];
+        MoveComponent* move = &s_Objects.m_Moves[id];
 
         // flip velocity
         move->velx = -move->velx;
@@ -200,15 +230,15 @@ struct AvoidanceSystem
         // go through all the objects
         for (size_t io = 0, no = objectList.size(); io != no; ++io)
         {
-            GameObject& go = s_Objects[objectList[io]];
-            PositionComponent* myposition = &go.m_Position;
+            EntityID go = objectList[io];
+            PositionComponent* myposition = &s_Objects.m_Positions[go];
 
             // check each thing in avoid list
             for (size_t ia = 0, na = avoidList.size(); ia != na; ++ia)
             {
                 float avDistance = avoidDistanceList[ia];
-                GameObject& avoid = s_Objects[avoidList[ia]];
-                PositionComponent* avoidposition = &avoid.m_Position;
+                EntityID avoid = avoidList[ia];
+                PositionComponent* avoidposition = &s_Objects.m_Positions[avoid];
                 
                 // is our position closer to "thing to avoid" position than the avoid distance?
                 if (DistanceSq(myposition, avoidposition) < avDistance * avDistance)
@@ -216,8 +246,8 @@ struct AvoidanceSystem
                     ResolveCollision(go, deltaTime);
                     
                     // also make our sprite take the color of the thing we just bumped into
-                    SpriteComponent* avoidSprite = &avoid.m_Sprite;
-                    SpriteComponent* mySprite = &go.m_Sprite;
+                    SpriteComponent* avoidSprite = &s_Objects.m_Sprites[avoid];
+                    SpriteComponent* mySprite = &s_Objects.m_Sprites[go];
                     mySprite->colorR = avoidSprite->colorR;
                     mySprite->colorG = avoidSprite->colorG;
                     mySprite->colorB = avoidSprite->colorB;
@@ -241,80 +271,74 @@ extern "C" void game_initialize(void)
     // create "world bounds" object
     WorldBoundsComponent bounds;
     {
-        GameObject go("bounds");
-        go.m_WorldBounds.xMin = -80.0f;
-        go.m_WorldBounds.xMax =  80.0f;
-        go.m_WorldBounds.yMin = -50.0f;
-        go.m_WorldBounds.yMax =  50.0f;
-        bounds = go.m_WorldBounds;
-        go.m_HasWorldBounds = 1;
-        s_MoveSystem.SetBounds(s_Objects.size());
-        s_Objects.emplace_back(go);
+        EntityID go = s_Objects.AddEntity("bounds");
+        s_Objects.m_WorldBounds[go].xMin = -80.0f;
+        s_Objects.m_WorldBounds[go].xMax =  80.0f;
+        s_Objects.m_WorldBounds[go].yMin = -50.0f;
+        s_Objects.m_WorldBounds[go].yMax =  50.0f;
+        bounds = s_Objects.m_WorldBounds[go];
+        s_Objects.m_Flags[go] |= Entities::kFlagWorldBounds;
+        s_MoveSystem.SetBounds(go);
     }
     
     // create regular objects that move
     for (auto i = 0; i < kObjectCount; ++i)
     {
-        GameObject go("object");
+        EntityID go = s_Objects.AddEntity("object");
 
         // position it within world bounds
-        go.m_Position.x = RandomFloat(bounds.xMin, bounds.xMax);
-        go.m_Position.y = RandomFloat(bounds.yMin, bounds.yMax);
-        go.m_HasPosition = 1;
+        s_Objects.m_Positions[go].x = RandomFloat(bounds.xMin, bounds.xMax);
+        s_Objects.m_Positions[go].y = RandomFloat(bounds.yMin, bounds.yMax);
+        s_Objects.m_Flags[go] |= Entities::kFlagPosition;
 
         // setup a sprite for it (random sprite index from first 5), and initial white color
-        go.m_Sprite.colorR = 1.0f;
-        go.m_Sprite.colorG = 1.0f;
-        go.m_Sprite.colorB = 1.0f;
-        go.m_Sprite.spriteIndex = rand() % 5;
-        go.m_Sprite.scale = 1.0f;
-        go.m_HasSprite = 1;
+        s_Objects.m_Sprites[go].colorR = 1.0f;
+        s_Objects.m_Sprites[go].colorG = 1.0f;
+        s_Objects.m_Sprites[go].colorB = 1.0f;
+        s_Objects.m_Sprites[go].spriteIndex = rand() % 5;
+        s_Objects.m_Sprites[go].scale = 1.0f;
+        s_Objects.m_Flags[go] |= Entities::kFlagSprite;
 
         // make it move
-        go.m_Move.Initialize(0.5f, 0.7f);
-        go.m_HasMove = 1;
-        s_MoveSystem.AddObjectToSystem(s_Objects.size());
+        s_Objects.m_Moves[go].Initialize(0.5f, 0.7f);
+        s_Objects.m_Flags[go] |= Entities::kFlagMove;
+        s_MoveSystem.AddObjectToSystem(go);
 
         // make it avoid the bubble things, by adding to the avoidance system
-        s_AvoidanceSystem.AddObjectToSystem(s_Objects.size());
-
-        s_Objects.emplace_back(go);
+        s_AvoidanceSystem.AddObjectToSystem(go);
     }
 
     // create objects that should be avoided
     for (auto i = 0; i < kAvoidCount; ++i)
     {
-        GameObject go("toavoid");
+        EntityID go = s_Objects.AddEntity("toavoid");
         
         // position it in small area near center of world bounds
-        go.m_Position.x = RandomFloat(bounds.xMin, bounds.xMax) * 0.2f;
-        go.m_Position.y = RandomFloat(bounds.yMin, bounds.yMax) * 0.2f;
-        go.m_HasPosition = 1;
+        s_Objects.m_Positions[go].x = RandomFloat(bounds.xMin, bounds.xMax) * 0.2f;
+        s_Objects.m_Positions[go].y = RandomFloat(bounds.yMin, bounds.yMax) * 0.2f;
+        s_Objects.m_Flags[go] |= Entities::kFlagPosition;
 
         // setup a sprite for it (6th one), and a random color
-        go.m_Sprite.colorR = RandomFloat(0.5f, 1.0f);
-        go.m_Sprite.colorG = RandomFloat(0.5f, 1.0f);
-        go.m_Sprite.colorB = RandomFloat(0.5f, 1.0f);
-        go.m_Sprite.spriteIndex = 5;
-        go.m_Sprite.scale = 2.0f;
-        go.m_HasSprite = 1;
+        s_Objects.m_Sprites[go].colorR = RandomFloat(0.5f, 1.0f);
+        s_Objects.m_Sprites[go].colorG = RandomFloat(0.5f, 1.0f);
+        s_Objects.m_Sprites[go].colorB = RandomFloat(0.5f, 1.0f);
+        s_Objects.m_Sprites[go].spriteIndex = 5;
+        s_Objects.m_Sprites[go].scale = 2.0f;
+        s_Objects.m_Flags[go] |= Entities::kFlagSprite;
         
         // make it move, slowly
-        go.m_Move.Initialize(0.1f, 0.2f);
-        go.m_HasMove = 1;
-        s_MoveSystem.AddObjectToSystem(s_Objects.size());
+        s_Objects.m_Moves[go].Initialize(0.1f, 0.2f);
+        s_Objects.m_Flags[go] |= Entities::kFlagMove;
+        s_MoveSystem.AddObjectToSystem(go);
 
         // add to avoidance this as "Avoid This" object
-        s_AvoidanceSystem.AddAvoidThisObjectToSystem(s_Objects.size(), 1.3f);
-        
-        s_Objects.emplace_back(go);
+        s_AvoidanceSystem.AddAvoidThisObjectToSystem(go, 1.3f);
     }
 }
 
 
 extern "C" void game_destroy(void)
 {
-    s_Objects.clear();
 }
 
 
@@ -327,23 +351,25 @@ extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
     s_AvoidanceSystem.UpdateSystem(time, deltaTime);
 
     // go through all objects
-    for (auto&& go : s_Objects)
+    for (size_t i = 0, n = s_Objects.m_Flags.size(); i != n; ++i)
     {
         // For objects that have a Position & Sprite on them: write out
         // their data into destination buffer that will be rendered later on.
         //
         // Using a smaller global scale "zooms out" the rendering, so to speak.
         float globalScale = 0.05f;
-        if (go.m_HasPosition && go.m_HasSprite)
+        if ((s_Objects.m_Flags[i] & Entities::kFlagPosition) && (s_Objects.m_Flags[i] & Entities::kFlagSprite))
         {
             sprite_data_t& spr = data[objectCount++];
-            spr.posX = go.m_Position.x * globalScale;
-            spr.posY = go.m_Position.y * globalScale;
-            spr.scale = go.m_Sprite.scale * globalScale;
-            spr.colR = go.m_Sprite.colorR;
-            spr.colG = go.m_Sprite.colorG;
-            spr.colB = go.m_Sprite.colorB;
-            spr.sprite = (float)go.m_Sprite.spriteIndex;
+            const PositionComponent& pos = s_Objects.m_Positions[i];
+            spr.posX = pos.x * globalScale;
+            spr.posY = pos.y * globalScale;
+            const SpriteComponent& sprite = s_Objects.m_Sprites[i];
+            spr.scale = sprite.scale * globalScale;
+            spr.colR = sprite.colorR;
+            spr.colG = sprite.colorG;
+            spr.colB = sprite.colorB;
+            spr.sprite = (float)sprite.spriteIndex;
         }
     }
     return objectCount;
