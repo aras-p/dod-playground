@@ -84,7 +84,7 @@ struct GameObject
 // The "scene": array of game objects.
 // "ID" of a game object is just an index into the scene array.
 typedef size_t EntityID;
-typedef std::vector<GameObject*> GameObjectVector;
+typedef std::vector<GameObject> GameObjectVector;
 static GameObjectVector s_Objects;
 
 
@@ -109,13 +109,13 @@ struct MoveSystem
     
     void UpdateSystem(double time, float deltaTime)
     {
-        const WorldBoundsComponent* bounds = &s_Objects[boundsID]->m_WorldBounds;
+        const WorldBoundsComponent* bounds = &s_Objects[boundsID].m_WorldBounds;
 
         // go through all the objects
         for (size_t io = 0, no = entities.size(); io != no; ++io)
         {
-            PositionComponent* pos = &s_Objects[io]->m_Position;
-            MoveComponent* move = &s_Objects[io]->m_Move;
+            PositionComponent* pos = &s_Objects[io].m_Position;
+            MoveComponent* move = &s_Objects[io].m_Move;
             
             // update position based on movement velocity & delta time
             pos->x += move->velx * deltaTime;
@@ -200,14 +200,14 @@ struct AvoidanceSystem
         // go through all the objects
         for (size_t io = 0, no = objectList.size(); io != no; ++io)
         {
-            GameObject& go = *s_Objects[objectList[io]];
+            GameObject& go = s_Objects[objectList[io]];
             PositionComponent* myposition = &go.m_Position;
 
             // check each thing in avoid list
             for (size_t ia = 0, na = avoidList.size(); ia != na; ++ia)
             {
                 float avDistance = avoidDistanceList[ia];
-                GameObject& avoid = *s_Objects[avoidList[ia]];
+                GameObject& avoid = s_Objects[avoidList[ia]];
                 PositionComponent* avoidposition = &avoid.m_Position;
                 
                 // is our position closer to "thing to avoid" position than the avoid distance?
@@ -236,16 +236,18 @@ static AvoidanceSystem s_AvoidanceSystem;
 
 extern "C" void game_initialize(void)
 {
+    s_Objects.reserve(1 + kObjectCount + kAvoidCount);
+    
     // create "world bounds" object
     WorldBoundsComponent bounds;
     {
-        GameObject* go = new GameObject("bounds");
-        go->m_WorldBounds.xMin = -80.0f;
-        go->m_WorldBounds.xMax =  80.0f;
-        go->m_WorldBounds.yMin = -50.0f;
-        go->m_WorldBounds.yMax =  50.0f;
-        bounds = go->m_WorldBounds;
-        go->m_HasWorldBounds = 1;
+        GameObject go("bounds");
+        go.m_WorldBounds.xMin = -80.0f;
+        go.m_WorldBounds.xMax =  80.0f;
+        go.m_WorldBounds.yMin = -50.0f;
+        go.m_WorldBounds.yMax =  50.0f;
+        bounds = go.m_WorldBounds;
+        go.m_HasWorldBounds = 1;
         s_MoveSystem.SetBounds(s_Objects.size());
         s_Objects.emplace_back(go);
     }
@@ -253,24 +255,24 @@ extern "C" void game_initialize(void)
     // create regular objects that move
     for (auto i = 0; i < kObjectCount; ++i)
     {
-        GameObject* go = new GameObject("object");
+        GameObject go("object");
 
         // position it within world bounds
-        go->m_Position.x = RandomFloat(bounds.xMin, bounds.xMax);
-        go->m_Position.y = RandomFloat(bounds.yMin, bounds.yMax);
-        go->m_HasPosition = 1;
+        go.m_Position.x = RandomFloat(bounds.xMin, bounds.xMax);
+        go.m_Position.y = RandomFloat(bounds.yMin, bounds.yMax);
+        go.m_HasPosition = 1;
 
         // setup a sprite for it (random sprite index from first 5), and initial white color
-        go->m_Sprite.colorR = 1.0f;
-        go->m_Sprite.colorG = 1.0f;
-        go->m_Sprite.colorB = 1.0f;
-        go->m_Sprite.spriteIndex = rand() % 5;
-        go->m_Sprite.scale = 1.0f;
-        go->m_HasSprite = 1;
+        go.m_Sprite.colorR = 1.0f;
+        go.m_Sprite.colorG = 1.0f;
+        go.m_Sprite.colorB = 1.0f;
+        go.m_Sprite.spriteIndex = rand() % 5;
+        go.m_Sprite.scale = 1.0f;
+        go.m_HasSprite = 1;
 
         // make it move
-        go->m_Move.Initialize(0.5f, 0.7f);
-        go->m_HasMove = 1;
+        go.m_Move.Initialize(0.5f, 0.7f);
+        go.m_HasMove = 1;
         s_MoveSystem.AddObjectToSystem(s_Objects.size());
 
         // make it avoid the bubble things, by adding to the avoidance system
@@ -282,24 +284,24 @@ extern "C" void game_initialize(void)
     // create objects that should be avoided
     for (auto i = 0; i < kAvoidCount; ++i)
     {
-        GameObject* go = new GameObject("toavoid");
+        GameObject go("toavoid");
         
         // position it in small area near center of world bounds
-        go->m_Position.x = RandomFloat(bounds.xMin, bounds.xMax) * 0.2f;
-        go->m_Position.y = RandomFloat(bounds.yMin, bounds.yMax) * 0.2f;
-        go->m_HasPosition = 1;
+        go.m_Position.x = RandomFloat(bounds.xMin, bounds.xMax) * 0.2f;
+        go.m_Position.y = RandomFloat(bounds.yMin, bounds.yMax) * 0.2f;
+        go.m_HasPosition = 1;
 
         // setup a sprite for it (6th one), and a random color
-        go->m_Sprite.colorR = RandomFloat(0.5f, 1.0f);
-        go->m_Sprite.colorG = RandomFloat(0.5f, 1.0f);
-        go->m_Sprite.colorB = RandomFloat(0.5f, 1.0f);
-        go->m_Sprite.spriteIndex = 5;
-        go->m_Sprite.scale = 2.0f;
-        go->m_HasSprite = 1;
+        go.m_Sprite.colorR = RandomFloat(0.5f, 1.0f);
+        go.m_Sprite.colorG = RandomFloat(0.5f, 1.0f);
+        go.m_Sprite.colorB = RandomFloat(0.5f, 1.0f);
+        go.m_Sprite.spriteIndex = 5;
+        go.m_Sprite.scale = 2.0f;
+        go.m_HasSprite = 1;
         
         // make it move, slowly
-        go->m_Move.Initialize(0.1f, 0.2f);
-        go->m_HasMove = 1;
+        go.m_Move.Initialize(0.1f, 0.2f);
+        go.m_HasMove = 1;
         s_MoveSystem.AddObjectToSystem(s_Objects.size());
 
         // add to avoidance this as "Avoid This" object
@@ -312,9 +314,6 @@ extern "C" void game_initialize(void)
 
 extern "C" void game_destroy(void)
 {
-    // just delete all objects/components
-    for (auto go : s_Objects)
-        delete go;
     s_Objects.clear();
 }
 
@@ -328,23 +327,23 @@ extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
     s_AvoidanceSystem.UpdateSystem(time, deltaTime);
 
     // go through all objects
-    for (auto go : s_Objects)
+    for (auto&& go : s_Objects)
     {
         // For objects that have a Position & Sprite on them: write out
         // their data into destination buffer that will be rendered later on.
         //
         // Using a smaller global scale "zooms out" the rendering, so to speak.
         float globalScale = 0.05f;
-        if (go->m_HasPosition && go->m_HasSprite)
+        if (go.m_HasPosition && go.m_HasSprite)
         {
             sprite_data_t& spr = data[objectCount++];
-            spr.posX = go->m_Position.x * globalScale;
-            spr.posY = go->m_Position.y * globalScale;
-            spr.scale = go->m_Sprite.scale * globalScale;
-            spr.colR = go->m_Sprite.colorR;
-            spr.colG = go->m_Sprite.colorG;
-            spr.colB = go->m_Sprite.colorB;
-            spr.sprite = (float)go->m_Sprite.spriteIndex;
+            spr.posX = go.m_Position.x * globalScale;
+            spr.posY = go.m_Position.y * globalScale;
+            spr.scale = go.m_Sprite.scale * globalScale;
+            spr.colR = go.m_Sprite.colorR;
+            spr.colG = go.m_Sprite.colorG;
+            spr.colB = go.m_Sprite.colorB;
+            spr.sprite = (float)go.m_Sprite.spriteIndex;
         }
     }
     return objectCount;
