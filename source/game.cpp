@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <math.h>
+#include <assert.h>
 
 const int kObjectCount = 1000000;
 const int kAvoidCount = 20;
@@ -391,7 +392,7 @@ extern "C" int game_update(sprite_data_t* data, double time, float deltaTime)
             spr.colR = sprite->colorR;
             spr.colG = sprite->colorG;
             spr.colB = sprite->colorB;
-            spr.sprite = sprite->spriteIndex;
+            spr.sprite = (float)sprite->spriteIndex;
         }
     }
     return objectCount;

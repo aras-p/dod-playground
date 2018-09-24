@@ -13,13 +13,15 @@
   <ItemGroup>
     <ClCompile Include="..\..\source\application.c" />
     <ClCompile Include="..\..\source\external\sokol.c" />
+    <ClCompile Include="..\..\source\game.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\external\HandmadeMath.h" />
     <ClInclude Include="..\..\source\external\sokol_app.h" />
     <ClInclude Include="..\..\source\external\sokol_gfx.h" />
     <ClInclude Include="..\..\source\external\sokol_time.h" />
     <ClInclude Include="..\..\source\external\stb_easy_font.h" />
+    <ClInclude Include="..\..\source\external\stb_image.h" />
+    <ClInclude Include="..\..\source\game.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -70,7 +72,6 @@
       <PreprocessorDefinitions>SOKOL_D3D11;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <WarningLevel>Level3</WarningLevel>
-      <ExceptionHandling>false</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -86,7 +87,6 @@
       <PreprocessorDefinitions>SOKOL_D3D11;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <WarningLevel>Level3</WarningLevel>
-      <ExceptionHandling>false</ExceptionHandling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>

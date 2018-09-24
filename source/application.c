@@ -5,6 +5,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "external/stb_image.h"
 
+#ifdef _MSC_VER
+__declspec(dllimport) void __stdcall OutputDebugStringA(const char* lpOutputString);
+#endif
+
 #include "game.h"
 
 extern const char *vs_src, *fs_src;
@@ -51,6 +55,7 @@ void init(void) {
         .vs.uniform_blocks[0] = {
             .size = sizeof(vs_params_t)
         },
+        .fs.images[0].type = SG_IMAGETYPE_2D,
         .vs.source = vs_src,
         .fs.source = fs_src,
     });
@@ -74,8 +79,8 @@ void init(void) {
         .layout = {
             .buffers[0].step_func = SG_VERTEXSTEP_PER_INSTANCE,
             .attrs = {
-                [0] = { .format=SG_VERTEXFORMAT_FLOAT3 }, // instance pos + scale
-                [1] = { .format=SG_VERTEXFORMAT_FLOAT4 }, // instance color
+                [0] = { .sem_name = "POSSCALE", .format=SG_VERTEXFORMAT_FLOAT3 }, // instance pos + scale
+                [1] = { .sem_name = "COLORSPRITE", .format=SG_VERTEXFORMAT_FLOAT4 }, // instance color
             },
         },
         .shader = shd,
@@ -109,7 +114,13 @@ void init(void) {
     uint64_t t0 = stm_now();
     game_initialize();
     uint64_t tdiff = stm_diff(stm_now(), t0);
-    printf("Initialize time: %.1fms\n", stm_ms(tdiff));
+    char buf[1000];
+    snprintf(buf, sizeof(buf), "Initialize time: %.1fms\n", stm_ms(tdiff));
+    #ifdef _MSC_VER
+    OutputDebugStringA(buf);
+    #else
+    puts(buf);
+    #endif
 }
 
 void frame(void) {
@@ -133,7 +144,13 @@ void frame(void) {
     totalFrameCount++;
     if ((totalFrameCount & (totalFrameCount - 1)) == 0 && totalFrameCount > 4)
     {
-        printf("Update time: %.1fms (%i sprites)\n", stm_ms(frameTimes) / frameCount, sprite_count);
+        char buf[1000];
+        snprintf(buf, 1000, "Update time: %.1fms (%i sprites)\n", stm_ms(frameTimes) / frameCount, sprite_count);
+        #ifdef _MSC_VER
+        OutputDebugStringA(buf);
+        #else
+        puts(buf);
+        #endif
         frameTimes = 0;
         frameCount = 0;
     }
@@ -215,30 +232,45 @@ const char* fs_src =
     "}\n";
 #elif defined(SOKOL_D3D11)
 const char* vs_src =
-    "cbuffer params: register(b0) {\n"
-    "  float4x4 mvp;\n"
+    "cbuffer params : register(b0) {\n"
+    "  float aspect;\n"
     "};\n"
     "struct vs_in {\n"
-    "  float4 pos: POS;\n"
-    "  float4 color: COLOR0;\n"
-    "  uint iid: SV_InstanceID;\n"
+    "  float4 posScale : POSSCALE;\n"
+    "  float4 colorIndex : COLORSPRITE;\n"
+    "  uint vid : SV_VertexID;\n"
     "};\n"
-    "struct vs_out {\n"
-    "  float4 color: COLOR0;\n"
-    "  float4 pos: SV_Position;\n"
+    "struct v2f {\n"
+    "  float3 color : COLOR0;\n"
+    "  float2 uv : TEXCOORD0;\n"
+    "  float4 pos : SV_Position;\n"
     "};\n"
-    "vs_out main(vs_in inp) {\n"
-    "  vs_out outp;\n"
-    "  inp.pos.x += inp.iid * 0.1;\n"
-    "  inp.pos.y += inp.iid * 0.3;\n"
-    "  inp.pos.z += inp.iid * 0.4;\n"
-    "  outp.pos = mul(mvp, inp.pos);\n"
-    "  outp.color = inp.color;\n"
+    "v2f main(vs_in inp) {\n"
+    "  v2f outp;\n"
+    "  float x = inp.vid / 2;\n"
+    "  float y = inp.vid & 1;\n"
+    "  outp.pos.x = inp.posScale.x + (x-0.5f) * inp.posScale.z;\n"
+    "  outp.pos.y = inp.posScale.y + (y-0.5f) * inp.posScale.z * aspect;\n"
+    "  outp.pos.z = 0.0f;\n"
+    "  outp.pos.w = 1.0f;\n"
+    "  outp.uv = float2((x + inp.colorIndex.w)/8,1-y);\n"
+    "  outp.color = inp.colorIndex.rgb;\n"
     "  return outp;\n"
     "};\n";
 const char* fs_src =
-    "float4 main(float4 color: COLOR0): SV_Target0 {\n"
-    "  return color;\n"
+    "struct v2f {\n"
+    "  float3 color: COLOR0;\n"
+    "  float2 uv: TEXCOORD0;\n"
+    "  float4 pos: SV_Position;\n"
+    "};\n"
+    "Texture2D tex0 : register(t0);\n"
+    "SamplerState smp0 : register(s0);\n"
+    "float4 main(v2f inp) : SV_Target0 {\n"
+    "  float4 diffuse = tex0.Sample(smp0, inp.uv);"
+    "  float lum = dot(diffuse.rgb, 0.333);\n"
+    "  diffuse.rgb = lerp(diffuse.rgb, lum.xxx, 0.8);\n"
+    "  diffuse.rgb *= inp.color.rgb;\n"
+    "  return diffuse;\n"
     "}\n";
 #else
 #error Unknown graphics plaform
