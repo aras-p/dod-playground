@@ -196,7 +196,7 @@ struct AvoidanceSystem
     void AddAvoidThisObjectToSystem(EntityID id, float distance)
     {
         avoidList.emplace_back(id);
-        avoidDistanceList.emplace_back(distance);
+        avoidDistanceList.emplace_back(distance * distance);
     }
     
     void AddObjectToSystem(EntityID id)
@@ -241,7 +241,7 @@ struct AvoidanceSystem
                 const PositionComponent& avoidposition = s_Objects.m_Positions[avoid];
                 
                 // is our position closer to "thing to avoid" position than the avoid distance?
-                if (DistanceSq(myposition, avoidposition) < avDistance * avDistance)
+                if (DistanceSq(myposition, avoidposition) < avDistance)
                 {
                     ResolveCollision(go, deltaTime);
                     
