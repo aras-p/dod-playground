@@ -4,7 +4,7 @@ Sample OOP/ECS/DOD project (C++) for an internal Unity lecture in 2018, aimed at
 
 This is a super-simple C++ "game" _(just a bunch of sprites moving around with very small amount of logic really)_ I made to
 show how one might go from a very traditional OOP style GameObject/Component based code to an ECS _(Entity Component System)_ /
-DOD _(Data Oriented Design)_ based code. In the process making it run 10x faster, initalize 5x faster, and saving 100MB of memory
+DOD _(Data Oriented Design)_ based code. In the process making it run 10x faster, initialize 5x faster, and saving 100MB of memory
 in the process.
 
 Talk [**slides are here**](http://aras-p.info/texts/files/2018Academy%20-%20ECS-DoD.pdf) _(10MB pdf)_.
