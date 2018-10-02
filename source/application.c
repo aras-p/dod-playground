@@ -53,9 +53,22 @@ void init(void) {
     /* create shader */
     sg_shader shd = sg_make_shader(&(sg_shader_desc) {
         .vs.uniform_blocks[0] = {
+#if defined(SOKOL_GLCORE33)
+            .size = sizeof(vs_params_t),
+            .uniforms = {
+                [0] = { .name = "aspect", .type = SG_UNIFORMTYPE_FLOAT }
+            },
+#else
             .size = sizeof(vs_params_t)
+#endif
         },
+#if defined(SOKOL_GLCORE33)
+        .fs.images = {
+		        [0] = { .name="tex0", .type=SG_IMAGETYPE_2D },
+	      },
+#else
         .fs.images[0].type = SG_IMAGETYPE_2D,
+#endif
         .vs.source = vs_src,
         .fs.source = fs_src,
     });
@@ -78,10 +91,17 @@ void init(void) {
     sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
         .layout = {
             .buffers[0].step_func = SG_VERTEXSTEP_PER_INSTANCE,
+#if defined(SOKOL_GLCORE33)
+            .attrs = {
+                [0] = { .name="posScale", .offset = 0, .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index=0 }, // instance pos + scale
+                [1] = { .name="colorIndex", .offset = 12, .format=SG_VERTEXFORMAT_FLOAT4, .buffer_index=0 }, // instance color
+            },
+#else
             .attrs = {
                 [0] = { .sem_name = "POSSCALE", .format=SG_VERTEXFORMAT_FLOAT3 }, // instance pos + scale
                 [1] = { .sem_name = "COLORSPRITE", .format=SG_VERTEXFORMAT_FLOAT4 }, // instance color
             },
+#endif
         },
         .shader = shd,
         .index_type = SG_INDEXTYPE_UINT16,
@@ -272,6 +292,36 @@ const char* fs_src =
     "  diffuse.rgb *= inp.color.rgb;\n"
     "  return diffuse;\n"
     "}\n";
+#elif defined(SOKOL_GLCORE33)
+const char* vs_src =
+    "#version 330\n"
+    "uniform float aspect;\n"
+    "in vec3 posScale;\n"
+    "in vec4 colorIndex;\n"
+    "out vec3 color;\n"
+    "out vec2 uv;\n"
+    "void main() {\n"
+    "  float x = gl_VertexID / 2;\n"
+    "  float y = gl_VertexID & 1;\n"
+    "  gl_Position.x = posScale.x + (x-0.5f) * posScale.z;\n"
+    "  gl_Position.y = posScale.y + (y-0.5f) * posScale.z * aspect;\n"
+    "  gl_Position.z = 0.0f;\n"
+    "  gl_Position.w = 1.0f;\n"
+    "  uv = vec2((x + colorIndex.w)/8, 1-y);\n"
+    "  color = colorIndex.rgb;\n"
+    "}\n";
+const char* fs_src =
+    "#version 330\n"
+    "uniform sampler2D tex0;\n"
+    "in vec3 color;\n"
+    "in vec2 uv;\n"
+    "out vec4 frag_color;\n"
+    "void main() {\n"
+    "  frag_color = texture(tex0, uv);\n"
+    "  float lum = dot(frag_color.rgb, vec3(0.333));\n"
+    "  frag_color.rgb = mix(frag_color.rgb, vec3(lum), 0.8);\n"
+    "  frag_color.rgb *= color.rgb;\n"
+    "}\n";
 #else
-#error Unknown graphics plaform
+#error No shaders defined for specified graphics platform
 #endif
