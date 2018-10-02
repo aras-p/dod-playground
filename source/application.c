@@ -64,7 +64,7 @@ void init(void) {
         },
 #if defined(SOKOL_GLCORE33)
         .fs.images = {
-		        [0] = { .name="tex0", .type=SG_IMAGETYPE_2D },
+				    [0] = { .name="tex0", .type=SG_IMAGETYPE_2D },
 	      },
 #else
         .fs.images[0].type = SG_IMAGETYPE_2D,
