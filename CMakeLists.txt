@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 project(dod_playground)
 
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	message(FATAL_ERROR "This CMake setup currently only supports Linux. For Windows and macOS please see the ready-made projects in the projects/ directory.")
+endif()
+
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11)
 
