@@ -9,8 +9,9 @@ in the process.
 
 Talk [**slides are here**](http://aras-p.info/texts/files/2018Academy%20-%20ECS-DoD.pdf) _(10MB pdf)_.
 
-The app playground should work on Windows (uses D3D11, VS2017 project in `projects/vs2017/dod-playground.sln`) and
-macOS (uses Metal, Xcode 9 project in `projects/xcode/dod-playground.xcodeproj`).
+The app playground should work on Windows (uses D3D11, VS2017 project in `projects/vs2017/dod-playground.sln`), 
+macOS (uses Metal, Xcode 9 project in `projects/xcode/dod-playground.xcodeproj`) and Linux (uses GL, CMakeLists.txt 
+in root folder).
 
 I used some excellent other libraries/resources to make life easier for me here:
 
