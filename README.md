@@ -17,3 +17,4 @@ I used some excellent other libraries/resources to make life easier for me here:
 * [Sokol](https://github.com/floooh/sokol) libraries for application setup, rendering and time functions. zlib/libpng license.
 * [stb](https://github.com/nothings/stb) library for image loading. mit/unlicense license.
 * Sprites used by "the game" I took from Dan Cook's [Space Cute prototyping challenge](http://www.lostgarden.com/2007/03/spacecute-prototyping-challenge.html).
+* tested pg1
